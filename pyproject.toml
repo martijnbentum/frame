@@ -3,6 +3,6 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "w2v-frames"
+name = "frame"
 version = "0.1.0"
 dependencies = ["numpy"]
