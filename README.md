@@ -7,6 +7,9 @@ outputs.
 
 ```bash
 pip install git+ssh://git@github.com/you/w2v-frames.git
+```
+
+## Example Usage
 
 ```python
 from w2v_frames import make_frames_from_outputs
