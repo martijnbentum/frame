@@ -112,7 +112,7 @@ class Frames:
         return selected_frames
 
     def cnn(self, start_time = None, end_time = None, average = False,
-        percentage_overlap = None, position = None:
+        percentage_overlap = None, position = None):
         '''Get the cnn output of the frames that overlap with the start
         and end times
         '''
