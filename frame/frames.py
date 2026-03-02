@@ -238,7 +238,7 @@ class Frame:
 def find_frame_start_time(start_time, stride = 0.02):
     '''find the start time of the first frame.'''
     if abs(0 - start_time) < 0.001: return 0
-    print('using start time: {start_time}, stride {stride}')
+    print(f'using start time: {start_time}, stride {stride}')
     end_time = start_time + 0.001
     nframes = int(start_time / stride) + 5
     frames = Frames(nframes, start_time =  0)
