@@ -1,4 +1,4 @@
-import . frames 
+from . import frames 
 
 def labels_to_frames(labels, start= None, end = None, stride = 0.02, 
     field = 0.025, time_format = 's'):
