@@ -30,3 +30,12 @@ def labels_to_frames(labels, start= None, end = None, stride = 0.02,
                 frame.labels.append(label.label)
     return f
 
+def middle_point(start, end):
+    return (start + end) / 2
+
+def center_frame_on_target(target, field = 0.025):
+    middle = middle_point(target.start_seconds, target.end_seconds)
+    start_target_frame = middle - (field / 2)
+
+    
+    
