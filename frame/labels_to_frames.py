@@ -19,8 +19,8 @@ def labels_to_frames(labels, start= None, end = None, stride = 0.02,
     Returns:
         list: A list of frames, where each frame is a tuple (time, label).
     '''
-    if start is None: start = min(x.start_seconds for label in labels)
-    if end is None: end = max(x.end_seconds for label in labels)
+    if start is None: start = min(label.start_seconds for label in labels)
+    if end is None: end = max(label.end_seconds for label in labels)
     duration = end - start
     f = frames.make_frames_from_duration(duration, stride, field)
     for frame in f.frames:
