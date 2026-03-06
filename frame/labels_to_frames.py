@@ -13,7 +13,6 @@ class Data:
         self._handle_audio(audio_duration, audio_info, audio_filename)
         self.target = labels[target_index]
         self.target_duration=self.target.end_seconds-self.target.start_seconds
-        self.target_frames = self.target.frames
         self.start_context = labels_to_start(labels)
         self.target_mid_point = middle_point(self.target.start_seconds, 
             self.target.end_seconds)
@@ -25,12 +24,48 @@ class Data:
         if self.audio_duration is not None and self.end > self.audio_duration:
             self.end = self.audio_duration
         self.frames = labels_to_frames(labels, self.start, self.end)
+        self.target_frames = self.target.frames
         self.target_center_frame = self.target.center_frame
         self.check_ok()
         if self.ok: 
             self._set_preceding_and_following_labels()
             self._set_preceding_and_following_frames_without_label()
             self._define_neighbours()
+
+    def __repr__(self):
+        frame = f'#frames:{self.frames.n_frames}, ' 
+        frame += f'start:{self.frames.start_time:.3f}, '
+        frame += f'end:{self.frames.end_time:.3f}'
+        return f'Data(target={self.target}, {frame}, ok={self.ok}'
+
+    def __str__(self):
+        m = self.__repr__() + '\n'
+        m += f'preceding frames:\n'
+        m += f'  first frame: {self.preceding_frames_no_label[0]}\n'
+        m += f'  #frames without label: {len(self.preceding_frames_no_label)}\n'
+        m += f'  last frame: {self.preceding_frames_no_label[-1]}\n' 
+        m += f'preceding labels:\n'
+        m += f'  first frame: {self.preceding_labels[0].frames[0]}\n'
+        for label in self.preceding_labels:
+            m += f'  {label}, center: {label.center_frame}'
+            m += f' #frames: {len(label.frames)}\n'
+        m += f'  last frame: {self.preceding_labels[-1].frames[-1]}\n'
+        m += f'target label: \n'
+        m += f'  first frame: {self.target.frames[0]}\n'
+        m += f'  {self.target}, center: {self.target.center_frame}'
+        m += f' #frames: {len(self.target.frames)}\n'
+        m += f'  last frame: {self.target.frames[-1]}\n'
+        m += f'following labels: \n'
+        m += f'  first frame: {self.following_labels[0].frames[0]}\n'
+        for label in self.following_labels:
+            m += f'  {label}, center: {label.center_frame}'
+            m += f' #frames: {len(label.frames)}\n'
+        m += f'  last frame: {self.following_labels[-1].frames[-1]}\n'
+        m += f'following frames:\n'
+        m += f'  first frame: {self.following_frames_no_label[0]}\n'
+        m += f'  #frames without label: {len(self.following_frames_no_label)}\n'
+        m += f'  last frame: {self.following_frames_no_label[-1]}\n'
+        return m
 
     def _set_preceding_and_following_labels(self):
         if self.target_index <= 0: self.preceding_labels = []
@@ -60,30 +95,6 @@ class Data:
             setattr(self, f'{on}_neighbour_frames', frames)
             setattr(self, f'{on}_neighbour_center_frames', center_frames)
         
-    def __repr__(self):
-        frame = f'#frames:{self.frames.n_frames}, ' 
-        frame += f'start:{self.frames.start_time:.3f}, '
-        frame += f'end:{self.frames.end_time:.3f}'
-        return f'Data(target={self.target}, {frame}, ok={self.ok}'
-
-    def __str__(self):
-        m = self.__repr__() + '\n'
-        m += f'preceding frames:\n'
-        m += f'  #frames without label: {len(self.preceding_frames_no_label)}\n'
-        m += f'preceding labels:\n'
-        for label in self.preceding_labels:
-            m += f'  {label}, center: {label.center_frame}'
-            m += f' #frames: {len(label.frames)}\n'
-        m += f'target label: \n'
-        m += f'  {self.target}, center: {self.target.center_frame}'
-        m += f' #frames: {len(self.target.frames)}\n'
-        m += f'following labels: \n'
-        for label in self.following_labels:
-            m += f'  {label}, center: {label.center_frame}'
-            m += f' #frames: {len(label.frames)}\n'
-        m += f'following frames:\n'
-        m += f'  #frames without label: {len(self.following_frames_no_label)}\n'
-        return m
         
 
     def check_ok(self):
@@ -134,7 +145,8 @@ def labels_to_frames(labels, start = None, end = None, stride = 0.02,
         frame.labels = []
         frame.label = None
         for label in labels:
-            if frame.overlap(label.start_seconds, label.end_seconds):
+            start, end = label.start_seconds, label.end_seconds
+            if frame.overlap_percentage(start, end) > .1:
                 frame.labels.append(label)
                 label.all_frames.append(frame)
         if len(frame.labels) > 2: 
@@ -148,6 +160,7 @@ def labels_to_frames(labels, start = None, end = None, stride = 0.02,
             frame.label.frames.append(frame)
             continue
         frame.label = find_label_with_max_overlap(frame, frame.labels)
+        frame.label.frames.append(frame)
     return f
 
 def middle_point(start, end):
