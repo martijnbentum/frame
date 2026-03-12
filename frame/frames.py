@@ -27,6 +27,8 @@ class Frames:
         self.field = field
         self.n_frames = n_frames
         self.start_time = start_time
+        if self.n_frames <= 0:
+            raise ValueError('n_frames must be greater than 0')
         self._make_frames()
         self.end_time = self.frames[-1].end_time
         self.duration = self.end_time - self.frames[0].start_time
@@ -101,13 +103,14 @@ class Frames:
         if start_time == end_time == None:
             return self.frames
         if start_time is None: start_time = self.start_time
-        if end_time is None: end = self.end_time
+        if end_time is None: end_time = self.end_time
         selected_frames = []
+        po = percentage_overlap
         for frame in self.frames:
-            if percentage_overlap == None:
+            if percentage_overlap is None:
                 if frame.overlap(start_time,end_time):
                     selected_frames.append(frame)
-            elif frame.overlap_percentage(start,end) >= percentage_overlap:
+            elif frame.overlap_percentage(start_time, end_time) >= po:
                 selected_frames.append(frame)
         return selected_frames
 
@@ -173,7 +176,7 @@ class Frames:
 class Frame:
     '''Frame class to handle a single frame of the wav2vec2 output.'''
     def __init__(self, index, stride, field, global_start_time, parent,
-        info = {}):
+        info = None):
         '''Handles a single frame of the wav2vec2 outputs
         index               index of the frame
         stride              the time between frames
@@ -186,7 +189,7 @@ class Frame:
         self.field = field
         self.global_start_time = global_start_time
         self.parent = parent
-        self.info = info
+        self.info = {} if info is None else info
 
         self.start_time = self.index * self.stride + self.global_start_time
         self.end_time = self.start_time + self.field
@@ -253,23 +256,27 @@ def make_frames_from_outputs(outputs, **kwargs):
     '''
     output_n_frames = outputs.extract_features.shape[1]
     n_frames = output_n_frames
-    frames = Frames(n_frames, **kwargs)
+    frames = Frames(n_frames, outputs = outputs, **kwargs)
     return frames
 
 def make_frames_from_duration(duration, stride = 0.02, field = 0.025,
     identifier = ''):
+    if duration <= 0:
+        raise ValueError('duration must be greater than 0')
     nframes = int(duration / stride) - 1
     ms_duration = int(round(duration *1000))
     ms_leftover = ms_duration - int(round(nframes * stride * 1000))
     ms_field = int(round(field*1000))
     if ms_leftover >= ms_field: nframes += 1
+    if nframes <= 0:
+        nframes = 1
     return Frames(nframes, stride, field, identifier = identifier)
 
 
 def extract_outputs_times(outputs, start_time, end_time):
     '''extract the outputs that overlap with the start and end times
     '''
-    frames = make_frames_with_outputs(outputs, start_time = start_time)
+    frames = make_frames_from_outputs(outputs, start_time = start_time)
     selected_frames = frames.select_frames(start_time, end_time)
     start_index = selected_frames[0].index
     end_index = selected_frames[-1].index + 1
