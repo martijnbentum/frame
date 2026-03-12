@@ -41,31 +41,49 @@ class Data:
     def __str__(self):
         m = self.__repr__() + '\n'
         m += f'preceding frames:\n'
-        m += f'  first frame: {self.preceding_frames_no_label[0]}\n'
+        m += f'  first frame: {self._first_or_none(self.preceding_frames_no_label)}\n'
         m += f'  #frames without label: {len(self.preceding_frames_no_label)}\n'
-        m += f'  last frame: {self.preceding_frames_no_label[-1]}\n' 
+        m += f'  last frame: {self._last_or_none(self.preceding_frames_no_label)}\n' 
         m += f'preceding labels:\n'
-        m += f'  first frame: {self.preceding_labels[0].frames[0]}\n'
+        m += f'  first frame: {self._label_boundary_frame(self.preceding_labels, first = True)}\n'
         for label in self.preceding_labels:
             m += f'  {label}, center: {label.center_frame}'
             m += f' #frames: {len(label.frames)}\n'
-        m += f'  last frame: {self.preceding_labels[-1].frames[-1]}\n'
+        m += f'  last frame: {self._label_boundary_frame(self.preceding_labels, first = False)}\n'
         m += f'target label: \n'
         m += f'  first frame: {self.target.frames[0]}\n'
         m += f'  {self.target}, center: {self.target.center_frame}'
         m += f' #frames: {len(self.target.frames)}\n'
         m += f'  last frame: {self.target.frames[-1]}\n'
         m += f'following labels: \n'
-        m += f'  first frame: {self.following_labels[0].frames[0]}\n'
+        m += f'  first frame: {self._label_boundary_frame(self.following_labels, first = True)}\n'
         for label in self.following_labels:
             m += f'  {label}, center: {label.center_frame}'
             m += f' #frames: {len(label.frames)}\n'
-        m += f'  last frame: {self.following_labels[-1].frames[-1]}\n'
+        m += f'  last frame: {self._label_boundary_frame(self.following_labels, first = False)}\n'
         m += f'following frames:\n'
-        m += f'  first frame: {self.following_frames_no_label[0]}\n'
+        m += f'  first frame: {self._first_or_none(self.following_frames_no_label)}\n'
         m += f'  #frames without label: {len(self.following_frames_no_label)}\n'
-        m += f'  last frame: {self.following_frames_no_label[-1]}\n'
+        m += f'  last frame: {self._last_or_none(self.following_frames_no_label)}\n'
         return m
+
+    def _first_or_none(self, items):
+        if not items:
+            return None
+        return items[0]
+
+    def _last_or_none(self, items):
+        if not items:
+            return None
+        return items[-1]
+
+    def _label_boundary_frame(self, labels, first = True):
+        if not labels:
+            return None
+        frames = labels[0].frames if first else labels[-1].frames
+        if not frames:
+            return None
+        return frames[0] if first else frames[-1]
 
     def _set_preceding_and_following_labels(self):
         if self.target_index <= 0: self.preceding_labels = []
@@ -207,5 +225,4 @@ def find_label_with_max_overlap(frame, overlapping_labels):
             d2 = selected_label.end_seconds - selected_label.start_seconds
             if d1 < d2: selected_label = label
     return selected_label
-
 
