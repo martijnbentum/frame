@@ -303,7 +303,20 @@ class Frame:
         raise ValueError('attention must be 3D or 4D')
 
     def attention_query(self, layer, head = None):
-        '''Get attention from this frame as query over all key frames.'''
+        '''Get attention from this frame as query to all key frames.
+
+        The attention tensor has layout (heads, query_frames, key_frames).
+        This method fixes query = self.index and returns the corresponding
+        row of the attention matrix.
+
+        Returns
+        (heads, T) if head=None, otherwise (T,)
+
+        Interpretation
+        Shows where this frame looks for context. Each value indicates how much
+        this frame attends to another frame when computing its representation.
+        Values across keys sum to ~1 (softmax over keys).
+        '''
         attention = self._attention_tensor(layer)
         if attention is None:return None
         if head is None:
@@ -311,7 +324,17 @@ class Frame:
         return attention[head,self.index,:]
 
     def attention_key(self, layer, head = None):
-        '''Get attention to this frame as key from all query frames.'''
+        '''Get attention to this frame as key from all query frames.
+
+        Tensor layout: (heads, query_frames, key_frames).
+
+        Returns attention[:, self.index, :] if head=None, otherwise
+        attention[head, self.index, :].
+
+        Interpretation
+        Shows which frames attend to this frame and how strongly they rely
+        on it as context when computing its representation.
+        '''
         attention = self._attention_tensor(layer)
         if attention is None:return None
         if head is None:
@@ -319,7 +342,18 @@ class Frame:
         return attention[head,:,self.index]
 
     def attention_query_key(self, layer, key_index, head = None):
-        '''Get attention from this query frame to a specific key frame.'''
+        '''Return attention from this frame (query) to a specific key frame.
+
+        Tensor layout: (heads, query_frames, key_frames).
+        Fixes query = self.index and key = key_index.
+
+        Returns
+        (heads,) if head=None, otherwise a scalar.
+
+        Interpretation
+        Shows how strongly this frame attends to the specified frame as a
+        context when computing its representation.
+        '''
         query_attention = self.attention_query(layer, head = head)
         if query_attention is None:return None
         return query_attention[...,key_index]
