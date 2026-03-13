@@ -34,6 +34,17 @@ def make_dummy_outputs(n_frames = 4, feature_size = 3):
     )
 
 
+def make_attention_outputs(n_frames = 4, with_batch_dim = False):
+    outputs = make_dummy_outputs(n_frames = n_frames)
+    attention = np.arange(2 * n_frames * n_frames, dtype = float).reshape(
+        2, n_frames, n_frames
+    )
+    if with_batch_dim:
+        attention = attention.reshape(1, 2, n_frames, n_frames)
+    outputs.attentions = [attention]
+    return outputs
+
+
 class FramesRegressionTests(unittest.TestCase):
     def test_make_frames_from_outputs_keeps_outputs_attached(self):
         outputs = make_dummy_outputs()
@@ -73,7 +84,24 @@ class FramesRegressionTests(unittest.TestCase):
         )
 
     def test_frame_attention_exposes_query_key_relation(self):
-        outputs = make_dummy_outputs(n_frames = 4)
+        outputs = make_attention_outputs(n_frames = 4)
+        frames = make_frames_from_outputs(outputs)
+
+        np.testing.assert_array_equal(
+            frames.frames[1].attention_query(0),
+            outputs.attentions[0][:, 1, :],
+        )
+        np.testing.assert_array_equal(
+            frames.frames[2].attention_key(0),
+            outputs.attentions[0][:, :, 2],
+        )
+        np.testing.assert_array_equal(
+            frames.frames[1].attention_query_key(0, 3),
+            outputs.attentions[0][:, 1, 3],
+        )
+
+    def test_frame_attention_accepts_batch_dimension(self):
+        outputs = make_attention_outputs(n_frames = 4, with_batch_dim = True)
         frames = make_frames_from_outputs(outputs)
 
         np.testing.assert_array_equal(
@@ -84,22 +112,18 @@ class FramesRegressionTests(unittest.TestCase):
             frames.frames[2].attention_key(0),
             outputs.attentions[0][0, :, :, 2],
         )
-        np.testing.assert_array_equal(
-            frames.frames[1].attention_query_key(0, 3),
-            outputs.attentions[0][0, :, 1, 3],
-        )
 
     def test_frames_attention_query_key_supports_selection(self):
-        outputs = make_dummy_outputs(n_frames = 4)
+        outputs = make_attention_outputs(n_frames = 4)
         frames = make_frames_from_outputs(outputs)
 
         np.testing.assert_array_equal(
             frames.attention_query(0, position = 'middle'),
-            outputs.attentions[0][0, :, 1, :],
+            outputs.attentions[0][:, 1, :],
         )
         np.testing.assert_array_equal(
             frames.attention_query_key(0, 2, position = 'middle'),
-            outputs.attentions[0][0, :, 1, 2],
+            outputs.attentions[0][:, 1, 2],
         )
 
     def test_select_frames_handles_missing_end_time_and_overlap_filter(self):

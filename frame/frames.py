@@ -290,27 +290,33 @@ class Frame:
         if self.parent.outputs.hidden_states[layer] is None:return None
         return self.parent.outputs.hidden_states[layer][0,self.index,:]
 
-    def attention_query(self, layer, head = None):
-        '''Get attention from this frame as query over all key frames.'''
+    def _attention_tensor(self, layer):
         if not hasattr(self.parent,'outputs'):return None
         if not hasattr(self.parent.outputs,'attentions'):return None
         if self.parent.outputs.attentions is None:return None
         attention = self.parent.outputs.attentions[layer]
         if attention is None:return None
+        if attention.ndim == 4:
+            return attention[0]
+        if attention.ndim == 3:
+            return attention
+        raise ValueError('attention must be 3D or 4D')
+
+    def attention_query(self, layer, head = None):
+        '''Get attention from this frame as query over all key frames.'''
+        attention = self._attention_tensor(layer)
+        if attention is None:return None
         if head is None:
-            return attention[0,:,self.index,:]
-        return attention[0,head,self.index,:]
+            return attention[:,self.index,:]
+        return attention[head,self.index,:]
 
     def attention_key(self, layer, head = None):
         '''Get attention to this frame as key from all query frames.'''
-        if not hasattr(self.parent,'outputs'):return None
-        if not hasattr(self.parent.outputs,'attentions'):return None
-        if self.parent.outputs.attentions is None:return None
-        attention = self.parent.outputs.attentions[layer]
+        attention = self._attention_tensor(layer)
         if attention is None:return None
         if head is None:
-            return attention[0,:,:,self.index]
-        return attention[0,head,:,self.index]
+            return attention[:,:,self.index]
+        return attention[head,:,self.index]
 
     def attention_query_key(self, layer, key_index, head = None):
         '''Get attention from this query frame to a specific key frame.'''
