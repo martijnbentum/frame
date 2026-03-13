@@ -49,13 +49,24 @@ class Frames:
     def _set_transformer_info(self):
         self.transformer_none_indices = []
         self.transformer_available_indices = []
-        if self.outputs is None: return
-        if not hasattr(self.outputs,'hidden_states'): return
-        for i, hidden_state in enumerate(self.outputs.hidden_states):
-            if hidden_state is None:
-                self.transformer_none_indices.append(i)
-            else:
-                self.transformer_available_indices.append(i)
+        self.attention_none_indices = []
+        self.attention_available_indices = []
+        if self.outputs is None:
+            return
+        if (hasattr(self.outputs,'hidden_states') and
+            self.outputs.hidden_states is not None):
+            for i, hidden_state in enumerate(self.outputs.hidden_states):
+                if hidden_state is None:
+                    self.transformer_none_indices.append(i)
+                else:
+                    self.transformer_available_indices.append(i)
+        if (hasattr(self.outputs,'attentions') and
+            self.outputs.attentions is not None):
+            for i, attention in enumerate(self.outputs.attentions):
+                if attention is None:
+                    self.attention_none_indices.append(i)
+                else:
+                    self.attention_available_indices.append(i)
 
     def start_frame(self, start_time = None, end_time = None, 
         percentage_overlap = None):
@@ -171,6 +182,54 @@ class Frames:
         if average:return np.mean(output,axis=0)
         return output
 
+    def attention_query(self, layer, start_time = None, end_time = None,
+        head = None, percentage_overlap = None, position = None):
+        '''Get attention for selected query frames over all key frames.'''
+        if self.outputs is None or not hasattr(self.outputs,'attentions'):
+            print('No outputs / attentions available')
+            return None
+        if self.outputs.attentions is None:
+            print('No outputs / attentions available')
+            return None
+        if layer not in self.attention_available_indices:
+            m = f'Layer {layer} not available in the attention outputs\n'
+            m += f'Available layers: {self.attention_available_indices}'
+            raise ValueError(m)
+        if position not in [None, 'start', 'middle', 'end']:
+            raise ValueError('position must be None, start, middle or end')
+        if position:
+            method = getattr(self, f'{position}_frame')
+            frame = method(start_time, end_time,
+                percentage_overlap = percentage_overlap)
+            return frame.attention_query(layer, head = head)
+        frames = self.select_frames(start_time, end_time,
+            percentage_overlap = percentage_overlap)
+        if len(frames) == 1:
+            return frames[0].attention_query(layer, head = head)
+        return np.array([
+            frame.attention_query(layer, head = head) for frame in frames
+        ])
+
+    def attention_query_key(self, layer, key_index, start_time = None,
+        end_time = None, head = None, percentage_overlap = None,
+        position = None):
+        '''Get attention from selected query frames to a key frame.'''
+        if position not in [None, 'start', 'middle', 'end']:
+            raise ValueError('position must be None, start, middle or end')
+        if position:
+            method = getattr(self, f'{position}_frame')
+            frame = method(start_time, end_time,
+                percentage_overlap = percentage_overlap)
+            return frame.attention_query_key(layer, key_index, head = head)
+        frames = self.select_frames(start_time, end_time,
+            percentage_overlap = percentage_overlap)
+        if len(frames) == 1:
+            return frames[0].attention_query_key(layer, key_index, head = head)
+        return np.array([
+            frame.attention_query_key(layer, key_index, head = head)
+            for frame in frames
+        ])
+
 
 
 class Frame:
@@ -227,7 +286,37 @@ class Frame:
     def transformer(self, layer):
         if not hasattr(self.parent,'outputs'):return None
         if not hasattr(self.parent.outputs,'hidden_states'):return None
+        if self.parent.outputs.hidden_states is None:return None
+        if self.parent.outputs.hidden_states[layer] is None:return None
         return self.parent.outputs.hidden_states[layer][0,self.index,:]
+
+    def attention_query(self, layer, head = None):
+        '''Get attention from this frame as query over all key frames.'''
+        if not hasattr(self.parent,'outputs'):return None
+        if not hasattr(self.parent.outputs,'attentions'):return None
+        if self.parent.outputs.attentions is None:return None
+        attention = self.parent.outputs.attentions[layer]
+        if attention is None:return None
+        if head is None:
+            return attention[0,:,self.index,:]
+        return attention[0,head,self.index,:]
+
+    def attention_key(self, layer, head = None):
+        '''Get attention to this frame as key from all query frames.'''
+        if not hasattr(self.parent,'outputs'):return None
+        if not hasattr(self.parent.outputs,'attentions'):return None
+        if self.parent.outputs.attentions is None:return None
+        attention = self.parent.outputs.attentions[layer]
+        if attention is None:return None
+        if head is None:
+            return attention[0,:,:,self.index]
+        return attention[0,head,:,self.index]
+
+    def attention_query_key(self, layer, key_index, head = None):
+        '''Get attention from this query frame to a specific key frame.'''
+        query_attention = self.attention_query(layer, head = head)
+        if query_attention is None:return None
+        return query_attention[...,key_index]
 
     def to_json(self):
         d = {}
@@ -287,22 +376,49 @@ def extract_outputs_indices(outputs, start_index, end_index, start_time):
     '''extract the outputs that overlap with the start and end indices
     '''
     o = copy.deepcopy(outputs)
-    o.audio_filename = outputs.audio_filename
+    if hasattr(outputs, 'audio_filename'):
+        o.audio_filename = outputs.audio_filename
     o.start_time = start_time
-    o.identifier = outputs.identifier
-    o.name = outputs.name
-    o.extract_features = outputs.extract_features[:,start_index:end_index,:]
-    o.hidden_states = extract_hidden_states(outputs.hidden_states,
-        start_index, end_index)
+    if hasattr(outputs, 'identifier'):
+        o.identifier = outputs.identifier
+    if hasattr(outputs, 'name'):
+        o.name = outputs.name
+    if hasattr(outputs, 'extract_features') and outputs.extract_features is not None:
+        o.extract_features = outputs.extract_features[:,start_index:end_index,:]
+    if hasattr(outputs, 'hidden_states'):
+        o.hidden_states = extract_hidden_states(outputs.hidden_states,
+            start_index, end_index)
+    if hasattr(outputs, 'attentions'):
+        o.attentions = extract_attentions(outputs.attentions,
+            start_index, end_index)
     return o
 
 def extract_hidden_states(hidden_states, start_index, end_index):
     '''extract the hidden states that overlap with the start and end indices
     '''
+    if hidden_states is None:
+        return None
     hs = []
     for hidden_state in hidden_states:
-        hs.append(hidden_state[:,start_index:end_index,:])
+        if hidden_state is None:
+            hs.append(None)
+        else:
+            hs.append(hidden_state[:,start_index:end_index,:])
     return hs
+
+def extract_attentions(attentions, start_index, end_index):
+    '''extract the attentions that overlap with the start and end indices'''
+    if attentions is None:
+        return None
+    extracted = []
+    for attention in attentions:
+        if attention is None:
+            extracted.append(None)
+        else:
+            extracted.append(
+                attention[:,:,start_index:end_index,start_index:end_index]
+            )
+    return extracted
 
 def select_start_frame(frames):
     n_frames = len(frames)

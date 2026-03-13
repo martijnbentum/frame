@@ -19,9 +19,15 @@ def make_dummy_outputs(n_frames = 4, feature_size = 3):
             1, n_frames, feature_size
         )
     ]
+    attentions = [
+        np.arange(n_frames * n_frames, dtype = float).reshape(
+            1, 1, n_frames, n_frames
+        )
+    ]
     return SimpleNamespace(
         extract_features = extract_features,
         hidden_states = hidden_states,
+        attentions = attentions,
         audio_filename = 'dummy.wav',
         identifier = 'dummy-id',
         name = 'dummy-name',
@@ -52,6 +58,50 @@ class FramesRegressionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             determine_n_frames_from_outputs(outputs)
 
+    def test_make_frames_from_outputs_accepts_none_hidden_state_layers(self):
+        outputs = make_dummy_outputs(n_frames = 4)
+        outputs.hidden_states = [None, outputs.hidden_states[0]]
+
+        frames = make_frames_from_outputs(outputs)
+
+        self.assertEqual(frames.transformer_none_indices, [0])
+        self.assertEqual(frames.transformer_available_indices, [1])
+        self.assertIsNone(frames.frames[0].transformer(0))
+        np.testing.assert_array_equal(
+            frames.frames[0].transformer(1),
+            outputs.hidden_states[1][0, 0, :],
+        )
+
+    def test_frame_attention_exposes_query_key_relation(self):
+        outputs = make_dummy_outputs(n_frames = 4)
+        frames = make_frames_from_outputs(outputs)
+
+        np.testing.assert_array_equal(
+            frames.frames[1].attention_query(0),
+            outputs.attentions[0][0, :, 1, :],
+        )
+        np.testing.assert_array_equal(
+            frames.frames[2].attention_key(0),
+            outputs.attentions[0][0, :, :, 2],
+        )
+        np.testing.assert_array_equal(
+            frames.frames[1].attention_query_key(0, 3),
+            outputs.attentions[0][0, :, 1, 3],
+        )
+
+    def test_frames_attention_query_key_supports_selection(self):
+        outputs = make_dummy_outputs(n_frames = 4)
+        frames = make_frames_from_outputs(outputs)
+
+        np.testing.assert_array_equal(
+            frames.attention_query(0, position = 'middle'),
+            outputs.attentions[0][0, :, 1, :],
+        )
+        np.testing.assert_array_equal(
+            frames.attention_query_key(0, 2, position = 'middle'),
+            outputs.attentions[0][0, :, 1, 2],
+        )
+
     def test_select_frames_handles_missing_end_time_and_overlap_filter(self):
         outputs = make_dummy_outputs(n_frames = 5)
         frames = make_frames_from_outputs(outputs)
@@ -73,6 +123,7 @@ class FramesRegressionTests(unittest.TestCase):
         extracted = extract_outputs_times(outputs, start_time = 0.02, end_time = 0.05)
 
         self.assertEqual(extracted.extract_features.shape[1], 2)
+        self.assertEqual(extracted.attentions[0].shape[2:], (2, 2))
         self.assertEqual(extracted.start_time, 0.02)
 
     def test_make_frames_from_duration_supports_short_segments(self):
