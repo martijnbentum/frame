@@ -250,40 +250,6 @@ def find_frame_start_time(start_time, stride = 0.02):
             return f.start_time
     raise ValueError('Could not find frame start time', start_time)
 
-def determine_n_frames_from_outputs(outputs):
-    '''determine the number of frames from available model outputs'''
-    frame_counts = []
-
-    if hasattr(outputs, 'extract_features') and outputs.extract_features is not None:
-        frame_counts.append(outputs.extract_features.shape[1])
-
-    if hasattr(outputs, 'hidden_states') and outputs.hidden_states is not None:
-        hidden_state_counts = [
-            hidden_state.shape[1]
-            for hidden_state in outputs.hidden_states
-            if hidden_state is not None
-        ]
-        if hidden_state_counts:
-            if len(set(hidden_state_counts)) != 1:
-                raise ValueError('hidden_states do not have matching frame counts')
-            frame_counts.append(hidden_state_counts[0])
-
-    if hasattr(outputs, 'attentions') and outputs.attentions is not None:
-        attention_counts = [
-            attention.shape[2]
-            for attention in outputs.attentions
-            if attention is not None
-        ]
-        if attention_counts:
-            if len(set(attention_counts)) != 1:
-                raise ValueError('attentions do not have matching frame counts')
-            frame_counts.append(attention_counts[0])
-
-    if not frame_counts:
-        raise ValueError('No frame-bearing outputs available')
-    if len(set(frame_counts)) != 1:
-        raise ValueError('Output frame counts do not match')
-    return frame_counts[0]
 
 def make_frames_from_outputs(outputs, **kwargs):
     '''make frames object from the outputs
@@ -366,3 +332,38 @@ def select_start_middle_end_frames(frames):
     elif n_frames > 3:
         d['middle'] = select_middle_frame(frames)
     return d
+
+def determine_n_frames_from_outputs(outputs):
+    '''determine the number of frames from available model outputs'''
+    frame_counts = []
+    o = outputs
+    if hasattr(o, 'extract_features') and o.extract_features is not None:
+        frame_counts.append(o.extract_features.shape[1])
+
+    if hasattr(o, 'hidden_states') and o.hidden_states is not None:
+        hs = o.hidden_states
+        hs_counts = [hidden_state.shape[1] for hidden_state in hs
+            if hidden_state is not None]
+        if hs_counts:
+            if len(set(hs_counts)) != 1:
+                m = 'hidden_states do not have matching frame counts\n'
+                raise ValueError(f'{m}, counts: {hs_counts}')
+            frame_counts.append(hs_counts[0])
+
+    if hasattr(o, 'attentions') and o.attentions is not None:
+        a = o.attentions
+        a_counts = [x.shape[2] for x in a if x is not None]
+        if a_counts:
+            if len(set(a_counts)) != 1:
+                m = 'attentions do not have matching frame counts'
+                raise ValueError(f'{m}, counts: {a_counts}')
+            frame_counts.append(a_counts[0])
+    if not frame_counts:
+        raise ValueError('No frame-bearing outputs available')
+    if len(set(frame_counts)) != 1:
+        attrs = [x for x in ['extract_features', 'hidden_states', 'attentions'] 
+            if hasattr(o, x) and getattr(o, x) is not None]
+        attr_counts = {attr: count for attr, count in zip(attrs, frame_counts)}
+        m = 'Output frame counts do not match'
+        raise ValueError(f'{m}, counts: {attr_counts}')
+    return frame_counts[0]
