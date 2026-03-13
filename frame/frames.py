@@ -250,12 +250,46 @@ def find_frame_start_time(start_time, stride = 0.02):
             return f.start_time
     raise ValueError('Could not find frame start time', start_time)
 
+def determine_n_frames_from_outputs(outputs):
+    '''determine the number of frames from available model outputs'''
+    frame_counts = []
+
+    if hasattr(outputs, 'extract_features') and outputs.extract_features is not None:
+        frame_counts.append(outputs.extract_features.shape[1])
+
+    if hasattr(outputs, 'hidden_states') and outputs.hidden_states is not None:
+        hidden_state_counts = [
+            hidden_state.shape[1]
+            for hidden_state in outputs.hidden_states
+            if hidden_state is not None
+        ]
+        if hidden_state_counts:
+            if len(set(hidden_state_counts)) != 1:
+                raise ValueError('hidden_states do not have matching frame counts')
+            frame_counts.append(hidden_state_counts[0])
+
+    if hasattr(outputs, 'attentions') and outputs.attentions is not None:
+        attention_counts = [
+            attention.shape[2]
+            for attention in outputs.attentions
+            if attention is not None
+        ]
+        if attention_counts:
+            if len(set(attention_counts)) != 1:
+                raise ValueError('attentions do not have matching frame counts')
+            frame_counts.append(attention_counts[0])
+
+    if not frame_counts:
+        raise ValueError('No frame-bearing outputs available')
+    if len(set(frame_counts)) != 1:
+        raise ValueError('Output frame counts do not match')
+    return frame_counts[0]
+
 def make_frames_from_outputs(outputs, **kwargs):
     '''make frames object from the outputs
     outputs         the outputs of the wav2vec2 model
     '''
-    output_n_frames = outputs.extract_features.shape[1]
-    n_frames = output_n_frames
+    n_frames = determine_n_frames_from_outputs(outputs)
     frames = Frames(n_frames, outputs = outputs, **kwargs)
     return frames
 

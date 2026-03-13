@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import numpy as np
 
 from frame.dummy_data import generate_segments
+from frame.frames import determine_n_frames_from_outputs
 from frame.frames import extract_outputs_times
 from frame.frames import make_frames_from_duration
 from frame.frames import make_frames_from_outputs
@@ -34,6 +35,22 @@ class FramesRegressionTests(unittest.TestCase):
 
         self.assertIs(frames.outputs, outputs)
         np.testing.assert_array_equal(frames.cnn(), outputs.extract_features[0])
+
+    def test_determine_n_frames_from_outputs_accepts_matching_sources(self):
+        outputs = make_dummy_outputs(n_frames = 4)
+        outputs.attentions = [
+            np.zeros((1, 2, 4, 4), dtype = float),
+            np.ones((1, 2, 4, 4), dtype = float),
+        ]
+
+        self.assertEqual(determine_n_frames_from_outputs(outputs), 4)
+
+    def test_determine_n_frames_from_outputs_rejects_mismatched_sources(self):
+        outputs = make_dummy_outputs(n_frames = 4)
+        outputs.attentions = [np.zeros((1, 2, 5, 5), dtype = float)]
+
+        with self.assertRaises(ValueError):
+            determine_n_frames_from_outputs(outputs)
 
     def test_select_frames_handles_missing_end_time_and_overlap_filter(self):
         outputs = make_dummy_outputs(n_frames = 5)
