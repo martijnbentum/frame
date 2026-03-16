@@ -27,7 +27,6 @@ class FrameSelection:
     def __init__(self, frames, indices, start = None, end = None):
         self.frames = frames
         self.indices = sorted(set(int(i) for i in indices))
-        self.label = ''
         self.start = start
         self.end = end
 
@@ -42,7 +41,9 @@ class FrameSelection:
             percentage_overlap = percentage_overlap)
 
     def __repr__(self):
-        return f'FrameSelection(label={self.label!r}, n_frames={len(self)})'
+        m = f'FrameSelection(n_frames={len(self)}, start={self.start}'
+        m += f', end={self.end})'
+        return m 
 
     def __len__(self):
         return len(self.indices)
@@ -55,7 +56,6 @@ class FrameSelection:
         if isinstance(index, slice):
             output = FrameSelection(self.frames, self.indices[index],
                 start = self.start, end = self.end)
-            output.label = self.label
             return output
         return self.frames[self.indices[index]]
 
@@ -188,7 +188,6 @@ class FrameSelection:
     def to_dict(self):
         '''Return simple dictionary summary.'''
         return {
-            'label': self.label,
             'start': self.start,
             'end': self.end,
             'indices': list(self.indices),
@@ -218,16 +217,6 @@ def segment_to_start_end(segment):
     if start is None or end is None:
         raise ValueError('segment must expose start and end times')
     return float(start), float(end)
-
-
-def segment_to_label(segment):
-    '''Extract a label from a segment-like object if present.
-    segment             object that may expose a label
-    '''
-    label = _segment_value(segment, 'label', 'name', 'text')
-    if label is None:
-        return ''
-    return str(label)
 
 
 def _segment_value(segment, *names):
