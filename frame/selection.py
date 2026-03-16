@@ -12,7 +12,6 @@ def make_frame_selection_from_segment(frames, segment,
     indices = segment_to_frame_indices(frames, segment,
         percentage_overlap = percentage_overlap)
     output = FrameSelection(frames, indices, start = start, end = end)
-    output.label = segment_to_label(segment)
     return output
 
 
