@@ -88,11 +88,11 @@ class FramesRegressionTests(unittest.TestCase):
         frames = make_frames_from_outputs(outputs)
 
         np.testing.assert_array_equal(
-            frames.frames[1].attention_query(0),
+            frames.frames[1].attention_to(0),
             outputs.attentions[0][:, 1, :],
         )
         np.testing.assert_array_equal(
-            frames.frames[2].attention_key(0),
+            frames.frames[2].attention_from(0),
             outputs.attentions[0][:, :, 2],
         )
         np.testing.assert_array_equal(
@@ -105,11 +105,11 @@ class FramesRegressionTests(unittest.TestCase):
         frames = make_frames_from_outputs(outputs)
 
         np.testing.assert_array_equal(
-            frames.frames[1].attention_query(0),
+            frames.frames[1].attention_to(0),
             outputs.attentions[0][0, :, 1, :],
         )
         np.testing.assert_array_equal(
-            frames.frames[2].attention_key(0),
+            frames.frames[2].attention_from(0),
             outputs.attentions[0][0, :, :, 2],
         )
 

@@ -201,13 +201,13 @@ class Frames:
             method = getattr(self, f'{position}_frame')
             frame = method(start_time, end_time,
                 percentage_overlap = percentage_overlap)
-            return frame.attention_query(layer, head = head)
+            return frame.attention_to(layer, head = head)
         frames = self.select_frames(start_time, end_time,
             percentage_overlap = percentage_overlap)
         if len(frames) == 1:
-            return frames[0].attention_query(layer, head = head)
+            return frames[0].attention_to(layer, head = head)
         return np.array([
-            frame.attention_query(layer, head = head) for frame in frames
+            frame.attention_to(layer, head = head) for frame in frames
         ])
 
     def attention_query_key(self, layer, key_index, start_time = None,
@@ -302,8 +302,9 @@ class Frame:
             return attention
         raise ValueError('attention must be 3D or 4D')
 
-    def attention_query(self, layer, head = None):
+    def attention_to(self, layer, head = None):
         '''Get attention from this frame as query to all key frames.
+        The current frame is used as the query frame.
 
         The attention tensor has layout (heads, query_frames, key_frames).
         This method fixes query = self.index and returns the corresponding
@@ -323,13 +324,14 @@ class Frame:
             return attention[:,self.index,:]
         return attention[head,self.index,:]
 
-    def attention_key(self, layer, head = None):
+    def attention_from(self, layer, head = None):
         '''Get attention to this frame as key from all query frames.
+        The current frame is used as the key frame.
 
         Tensor layout: (heads, query_frames, key_frames).
 
-        Returns attention[:, self.index, :] if head=None, otherwise
-        attention[head, self.index, :].
+        Returns attention[:, :, self.index] if head=None, otherwise
+        attention[head, :, self.index].
 
         Interpretation
         Shows which frames attend to this frame and how strongly they rely
@@ -354,7 +356,7 @@ class Frame:
         Shows how strongly this frame attends to the specified frame as a
         context when computing its representation.
         '''
-        query_attention = self.attention_query(layer, head = head)
+        query_attention = self.attention_to(layer, head = head)
         if query_attention is None:return None
         return query_attention[...,key_index]
 
