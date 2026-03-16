@@ -184,7 +184,7 @@ class FrameSelectionRegressionTests(unittest.TestCase):
     def test_selection_attention_to_matches_frame_level_attention(self):
         outputs = make_attention_outputs(n_frames = 4)
         frames = make_frames_from_outputs(outputs)
-        selection = FrameSelection(frames, [1, 2], label = 'source')
+        selection = FrameSelection(frames, [1, 2])
 
         np.testing.assert_array_equal(
             selection.attention_to(0),
@@ -194,15 +194,13 @@ class FrameSelectionRegressionTests(unittest.TestCase):
             selection.attention_to(0, aggregate = 'mean'),
             outputs.attentions[0][:, [1, 2], :].mean(axis = 1),
         )
-        np.testing.assert_array_equal(
-            selection.attention_query(0, head = 1),
-            outputs.attentions[0][1, [1, 2], :],
-        )
+        np.testing.assert_array_equal(selection.attention_to(0, head = 1),
+            outputs.attentions[0][1, [1, 2], :])
 
     def test_selection_attention_from_matches_frame_level_attention(self):
         outputs = make_attention_outputs(n_frames = 4)
         frames = make_frames_from_outputs(outputs)
-        selection = FrameSelection(frames, [1, 3], label = 'target')
+        selection = FrameSelection(frames, [1, 3])
 
         np.testing.assert_array_equal(
             selection.attention_from(0),
@@ -212,16 +210,14 @@ class FrameSelectionRegressionTests(unittest.TestCase):
             selection.attention_from(0, aggregate = 'sum'),
             outputs.attentions[0][:, :, [1, 3]].sum(axis = -1),
         )
-        np.testing.assert_array_equal(
-            selection.attention_key(0, head = 0),
-            outputs.attentions[0][0][:, [1, 3]],
-        )
+        np.testing.assert_array_equal(selection.attention_from(0, head = 0),
+            outputs.attentions[0][0][:, [1, 3]])
 
     def test_selection_to_selection_attention_aggregates_block(self):
         outputs = make_attention_outputs(n_frames = 4)
         frames = make_frames_from_outputs(outputs)
-        source = FrameSelection(frames, [1, 2], label = 'source')
-        target = FrameSelection(frames, [0, 3], label = 'target')
+        source = FrameSelection(frames, [1, 2])
+        target = FrameSelection(frames, [0, 3])
 
         value = source.attention_to_selection(target, 0, aggregate = 'mass')
         expected_block = outputs.attentions[0][:, [1, 2], :][:, :, [0, 3]]

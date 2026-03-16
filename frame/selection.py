@@ -1,50 +1,45 @@
 import numpy as np
 
+
 def make_frame_selection_from_segment(frames, segment,
-    percentage_overlap = None, label = None):
+    percentage_overlap = None):
     '''Create a FrameSelection from a single time-aligned segment.
     frames              Frames object to select from
     segment             object with start and end times
     percentage_overlap  percentage of frame duration that must overlap
-    label               optional label for the selection
     '''
     start, end = segment_to_start_end(segment)
     indices = segment_to_frame_indices(frames, segment,
         percentage_overlap = percentage_overlap)
-    if label is None:
-        label = segment_to_label(segment)
-    return FrameSelection(frames, indices, label = label, start = start,
-        end = end)
+    output = FrameSelection(frames, indices, start = start, end = end)
+    output.label = segment_to_label(segment)
+    return output
 
 
 class FrameSelection:
     '''View on a subset of frames from one Frames object.
     frames              parent Frames object
     indices             selected frame indices
-    label               optional label for this selection
     start               optional start time in seconds
     end                 optional end time in seconds
     '''
 
-    def __init__(self, frames, indices, label = '', start = None,
-        end = None):
+    def __init__(self, frames, indices, start = None, end = None):
         self.frames = frames
         self.indices = sorted(set(int(i) for i in indices))
-        self.label = label
+        self.label = ''
         self.start = start
         self.end = end
 
     @classmethod
-    def from_segment(cls, frames, segment, percentage_overlap = None,
-        label = None):
+    def from_segment(cls, frames, segment, percentage_overlap = None):
         '''Create a selection from a segment with start and end times.
         frames              Frames object to select from
         segment             object with start and end times
         percentage_overlap  percentage of frame duration that must overlap
-        label               optional label for the selection
         '''
         return make_frame_selection_from_segment(frames, segment,
-            percentage_overlap = percentage_overlap, label = label)
+            percentage_overlap = percentage_overlap)
 
     def __repr__(self):
         return f'FrameSelection(label={self.label!r}, n_frames={len(self)})'
@@ -58,8 +53,10 @@ class FrameSelection:
 
     def __getitem__(self, index):
         if isinstance(index, slice):
-            return FrameSelection(self.frames, self.indices[index],
-                label = self.label, start = self.start, end = self.end)
+            output = FrameSelection(self.frames, self.indices[index],
+                start = self.start, end = self.end)
+            output.label = self.label
+            return output
         return self.frames[self.indices[index]]
 
     @property
@@ -121,22 +118,6 @@ class FrameSelection:
         if aggregate == 'sum':
             return attention.sum(axis = -1)
         raise ValueError("aggregate must be None, 'mean', or 'sum'")
-
-    def attention_query(self, layer, head = None, aggregate = None):
-        '''Backward-compatible alias for attention_to.
-        layer               transformer layer index
-        head                optional head index
-        aggregate           None, mean, or sum over selected frames
-        '''
-        return self.attention_to(layer, head = head, aggregate = aggregate)
-
-    def attention_key(self, layer, head = None, aggregate = None):
-        '''Backward-compatible alias for attention_from.
-        layer               transformer layer index
-        head                optional head index
-        aggregate           None, mean, or sum over selected frames
-        '''
-        return self.attention_from(layer, head = head, aggregate = aggregate)
 
     def attention_to_selection(self, other, layer, head = None,
         aggregate = 'mass'):

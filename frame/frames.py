@@ -131,11 +131,11 @@ class Frames:
                 selected_frames.append(frame)
         return selected_frames
 
-    def frame_selection(self, segment, percentage_overlap=None, label=None):
+    def frame_selection(self, segment, percentage_overlap = None):
         '''Create a FrameSelection from a segment with start and end times.'''
         from .selection import make_frame_selection_from_segment
         return make_frame_selection_from_segment(self, segment,
-            percentage_overlap = percentage_overlap, label = label)
+            percentage_overlap = percentage_overlap)
 
     def cnn(self, start_time = None, end_time = None, average = False,
         percentage_overlap = None, position = None):
