@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+
+PYPROJECT_PATH = Path("pyproject.toml")
+VERSION_RE = re.compile(r'^(version\s*=\s*")(\d+)\.(\d+)\.(\d+)(")$', re.MULTILINE)
+
+
+def main() -> int:
+    if not PYPROJECT_PATH.exists():
+        print("pre-commit: pyproject.toml not found", file=sys.stderr)
+        return 1
+
+    content = PYPROJECT_PATH.read_text()
+    match = VERSION_RE.search(content)
+    if not match:
+        print(
+            'pre-commit: expected version = "X.Y.Z" in pyproject.toml',
+            file=sys.stderr,
+        )
+        return 1
+
+    major, minor, patch = map(int, match.groups()[1:4])
+    bumped = f'{match.group(1)}{major}.{minor}.{patch + 1}{match.group(5)}'
+    updated = content[: match.start()] + bumped + content[match.end() :]
+
+    if updated != content:
+        PYPROJECT_PATH.write_text(updated)
+        subprocess.run(
+            ["git", "add", str(PYPROJECT_PATH)],
+            check=True,
+        )
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

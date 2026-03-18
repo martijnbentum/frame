@@ -6,7 +6,7 @@ outputs.
 ## Installation
 
 ```bash
-pip install git+ssh://git@github.com/martijnbentum/frame.git
+pip install git+https://git@github.com/martijnbentum/frame.git
 ```
 
 ## Example Usage
