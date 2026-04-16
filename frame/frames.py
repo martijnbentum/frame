@@ -143,8 +143,7 @@ class Frames:
         and end times
         '''
         if self.outputs is None or not hasattr(self.outputs,'extract_features'): 
-            print('No outputs / extract_features available')
-            return None
+            raise ValueError('No outputs / extract_features available')
         if position not in [None, 'start', 'middle', 'end']:
             raise ValueError('position must be None, start, middle or end')
         if position:
@@ -174,12 +173,11 @@ class Frames:
         and end times
         '''
         if self.outputs is None or not hasattr(self.outputs,'hidden_states'): 
-            print('No outputs / hidden_states available')
-            return None
+            raise ValueError('No outputs / hidden_states available')
         if layer not in self.transformer_available_indices:
             m = f'Layer {layer} not available in the transformer outputs\n'
             m += f'Available layers: {self.transformer_available_indices}'
-            raise ValueError('Layer not available in the transformer outputs')
+            raise ValueError(m)
         if position not in [None, 'start', 'middle', 'end']:
             raise ValueError('position must be None, start, middle or end')
         if position:
@@ -198,11 +196,9 @@ class Frames:
         head = None, percentage_overlap = None, position = None):
         '''Get attention for selected query frames over all key frames.'''
         if self.outputs is None or not hasattr(self.outputs,'attentions'):
-            print('No outputs / attentions available')
-            return None
+            raise ValueError('No outputs / attentions available')
         if self.outputs.attentions is None:
-            print('No outputs / attentions available')
-            return None
+            raise ValueError('No outputs / attentions available')
         if layer not in self.attention_available_indices:
             m = f'Layer {layer} not available in the attention outputs\n'
             m += f'Available layers: {self.attention_available_indices}'
@@ -391,7 +387,7 @@ def find_frame_start_time(start_time, stride = 0.02):
     for i, f in enumerate(frames.frames):
         if f.overlap(start_time, end_time):
             return f.start_time
-    raise ValueError('Could not find frame start time', start_time)
+    raise ValueError(f'Could not find frame start time {start_time}')
 
 
 def make_frames_from_outputs(outputs, **kwargs):
@@ -469,9 +465,8 @@ def extract_attentions(attentions, start_index, end_index):
         if attention is None:
             extracted.append(None)
         else:
-            extracted.append(
-                attention[:,:,start_index:end_index,start_index:end_index]
-            )
+            x = attention[:,:,start_index:end_index,start_index:end_index]
+            extracted.append(x)
     return extracted
 
 def select_start_frame(frames):
