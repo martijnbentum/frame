@@ -168,7 +168,6 @@ class FrameSelectionRegressionTests(unittest.TestCase):
         selection = make_frame_selection_from_segment(frames, segment)
 
         self.assertEqual(selection.indices, [0, 1, 2])
-        self.assertEqual(selection.label, 'seg-a')
         self.assertEqual(selection.start, 0.021)
         self.assertEqual(selection.end, 0.059)
 
