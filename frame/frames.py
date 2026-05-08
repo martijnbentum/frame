@@ -390,6 +390,18 @@ def find_frame_start_time(start_time, stride = 0.02):
     raise ValueError(f'Could not find frame start time {start_time}')
 
 
+def make_frames_from_numpy_matrix(matrix, stride, field, identifier = '',
+    start_time = 0):
+    if len(matrix.shape) != 2: 
+        raise ValueError(f'matrix should be 2d {matrix.shape}')
+    if not isinstance(matrix, np.ndarray):
+        raise ValueError(f'matrix should be numpy array type (matrix)')
+    n_frames = matrix.shape[0]
+    frames = Frames(n_frames, stride, field, identifier = identifier,
+        start_time = start_time)
+    return frames
+     
+
 def make_frames_from_outputs(outputs, **kwargs):
     '''make frames object from the outputs
     outputs         the outputs of the wav2vec2 model
@@ -398,8 +410,9 @@ def make_frames_from_outputs(outputs, **kwargs):
     frames = Frames(n_frames, outputs = outputs, **kwargs)
     return frames
 
+
 def make_frames_from_duration(duration, stride = 0.02, field = 0.025,
-    identifier = ''):
+    identifier = '', start_time = 0):
     if duration <= 0:
         raise ValueError('duration must be greater than 0')
     nframes = int(duration / stride) - 1
@@ -407,9 +420,9 @@ def make_frames_from_duration(duration, stride = 0.02, field = 0.025,
     ms_leftover = ms_duration - int(round(nframes * stride * 1000))
     ms_field = int(round(field*1000))
     if ms_leftover >= ms_field: nframes += 1
-    if nframes <= 0:
-        nframes = 1
-    return Frames(nframes, stride, field, identifier = identifier)
+    if nframes <= 0: return None
+    return Frames(nframes, stride, field, identifier = identifier, 
+        start_time = start_time)
 
 
 def extract_outputs_times(outputs, start_time, end_time):
